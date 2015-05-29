@@ -1,11 +1,10 @@
 # coding: utf-8
 lib = File.expand_path('../lib', __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
-require 'pri_q/version'
 
 Gem::Specification.new do |spec|
   spec.name          = "pri_q"
-  spec.version       = PriQ::VERSION
+  spec.version       = '0.1.0'
   spec.date          = Date.today.to_s
   spec.authors       = ["Dzar87"]
   spec.email         = ["omgitsdzar@gmail.com"]

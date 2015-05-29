@@ -1,38 +1,30 @@
-require 'pri_q/version'
 require 'thread'
 
 class PriQ
 
   def initialize
-    @que = {}
+    @que = [nil]
     @que.taint
     @num_waiting = 0
     self.taint
     @mutex = Mutex.new
     @cond = ConditionVariable.new
-    @min = nil
-    @length = 0
-    @root_list = nil
   end
 
   def clear
-    Thread.handle_interrupt(StandardError => :on_blocking) do
-      @mutex.synchronize do
-        @que.clear
-      end
-    end
+    @que.clear
   end
 
   def empty?
-    @root_list.empty?
+    @que.empty?
   end
 
   def length
-    @que.length.dup.freeze
+    @que.length
   end
 
   def num_waiting
-    @num_waiting.dup.freeze
+    @num_waiting
   end
 
   def pop(non_block=false)
@@ -51,132 +43,93 @@ class PriQ
               end
             end
           else
-            return self.delete_min_return_key
+            # exchange the root with the last element
+            exchange(1, @que.size - 1)
+
+            # remove the last element of the list
+            max = @que.pop.obj rescue max = nil
+
+            # and make sure the tree ordered again
+            bubble_down(1)
+            return max
           end
         end
       end
     end
   end
 
-  # Add an object to the queue
-  def push(obj, priority)
+  def push(obj, priority=1)
     Thread.handle_interrupt(StandardError => :on_blocking) do
       @mutex.synchronize do
-        return self.change_priority(obj, priority) if @que[obj]
-        node = Node.new(obj, priority)
-        @que[obj] = node
-        @min = node if !@min or priority < @min.priority
-        if @root_list.nil?
-          @root_list = node
-          node.right = node
-          node.left = node.right
-        else
-          node.left = @root_list.left
-          node.right = @root_list
-          @root_list.left.right = node
-          @root_list.left = node
-        end
-        @length += 1
-        self
+        @que.push Element.new(obj, priority)
+        bubble_up(@que.size - 1)
         @cond.signal
       end
     end
   end
 
-  def change_priority(key, priority)
-    return self.push(key, priority) unless @que[key]
-
-    node = @que[key]
-    if node.priority < priority # Priority increased removing node and reinserting
-      self.delete(key)
-      self.push(key, priority)
-      return self
-    end
-    node.priority = priority
-    @min = node if node.priority < @min.priority
-
-    return self unless node.parent or node.parent.priority <= node.priority # Already in rootlist or bigger than parent
-    begin
-      parent = node.parent
-      self.cut_node(node)
-      node = parent
-    end while node.mark and node.parent
-    node.mark = true if node.parent
-
-    self
-  end
-
-  # call-seq:
-  #     [key] -> priority
-  #
-  # Return the priority of a key or nil if the key is not in the queue.
-  #
-  #     q = PriorityQueue.new
-  #     (0..10).each do | i | q[i.to_s] = i end
-  #     q["5"] #=> 5
-  #     q[5] #=> nil
-  def [](obj)
-    @que[obj] and @que[obj].priority
-  end
-
-  # call-seq:
-  #     has_key? key -> boolean
-  #
-  # Return false if the key is not in the queue, true otherwise.
-  #
-  #     q = PriorityQueue.new
-  #     (0..10).each do | i | q[i.to_s] = i end
-  #     q.has_key("5") #=> true
-  #     q.has_key(5)   #=> false
-  def has_key?(key)
-    @que.has_key?(key)
-  end
-
-  def each
-
-  end
-
   private
 
-  def cut_node(node)
-    return self unless node.parent
-    node.parent.degree -= 1
-    if node.parent.child == node
-      if node.right == node
-        node.parent.child = nil
-      else
-        node.parent.child = node.right
-      end
-    end
-    node.parent = nil
-    node.right.left = node.left
-    node.left.right = node.right
+  def bubble_up(index)
+    parent_index = (index / 2)
 
-    node.right = @root_list
-    node.left = @root_list.left
-    @root_list.left.right = node
-    @root_list.left = node
+    # return if we reach the root element
+    return if index <= 1
 
-    node.mark = false
+    # or if the parent is already greater than the child
+    return if @que[parent_index] >= @que[index]
 
-    self
+    # otherwise we exchange the child with the parent
+    exchange(index, parent_index)
+
+    # and keep bubbling up
+    bubble_up(parent_index)
   end
 
-  # Internal class Node
-  class Node # :nodoc:
-    attr_accessor :parent, :child, :left, :right, :key, :priority, :degree, :mark
+  def exchange(source, target)
+    @que[source], @que[target] = @que[target], @que[source]
+  end
 
-    def initialize(key, priority)
-      @key, @priority, @degree = key, priority, 0
+  def bubble_down(index)
+    child_index = (index * 2)
+
+    # stop if we reach the bottom of the tree
+    return if child_index > @que.size - 1
+
+    # make sure we get the largest child
+    not_the_last_element = child_index < @que.size - 1
+    left_element = @que[child_index]
+    right_element = @que[child_index + 1]
+    child_index += 1 if not_the_last_element && right_element > left_element
+
+    # there is no need to continue if the parent element if already bigger
+    # then its children
+    return if @que[index] >= @que[child_index]
+
+    exchange(index, child_index)
+
+    # repeat the process until we reach a point where the parent
+    # is larger than its children
+    bubble_down(child_index)
+  end
+
+  class Element
+    include Comparable
+
+    attr_accessor :obj, :priority
+
+    def initialize(obj, priority)
+      @obj, @priority = obj, priority
     end
 
-    def child=(child)
-      raise 'Circular Child' if child == self
-      raise 'Child is neighbour' if child == self.right
-      raise 'Child is neighbour' if child == self.left
-      @child = child
+    def <=>(other)
+      other.priority <=> @priority
     end
   end
 
-
+  alias_method :shift, :pop
+  alias_method :deq, :pop
+  alias_method :<<, :push
+  alias_method :enq, :push
+  alias_method :size, :length
 end
