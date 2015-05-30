@@ -47,7 +47,7 @@ class PriQ
             exchange(1, @que.size - 1)
 
             # remove the last element of the list
-            max = @que.pop.obj rescue max = nil
+            max = @que.pop.obj rescue return
 
             # and make sure the tree ordered again
             bubble_down(1)
@@ -116,14 +116,24 @@ class PriQ
   class Element
     include Comparable
 
-    attr_accessor :obj, :priority
+    attr_accessor :obj, :priority, :time
 
     def initialize(obj, priority)
-      @obj, @priority = obj, priority
+      @obj, @priority, @time = obj, priority, Time.now
     end
 
     def <=>(other)
-      other.priority <=> @priority
+      if other.priority < @priority
+        -1
+      elsif other.priority > @priority
+        1
+      elsif other.priority == @priority
+        if other.time < @time
+          -1
+        elsif other.time > @time
+          1
+        end
+      end
     end
   end
 
