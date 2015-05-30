@@ -9,16 +9,14 @@ Gem::Specification.new do |spec|
   spec.authors       = ["Dzar87"]
   spec.email         = ["omgitsdzar@gmail.com"]
 
-  spec.summary       = %q{Thread safe priority queue using a fibonacci heap}
+  spec.summary       = %q{Thread safe priority queue using a binary heap}
   spec.description   = %q{Based on Brian Schroeder's PriorityQueue 0.1.2. Simplified and made thread safe by mimicing the structure of Queue.}
   spec.homepage      = "TODO: Put your gem's website or public repo URL here."
   spec.license       = "MIT"
 
-  spec.files         = `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^(test|spec|features)/}) }
+  spec.files         = `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^(test|spec|features|.idea)/}) }
   spec.bindir        = "exe"
   spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
-  spec.add_development_dependency "bundler", "~> 1.10.a"
-  spec.add_development_dependency "rake", "~> 10.0"
 end
