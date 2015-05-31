@@ -16,7 +16,7 @@ class PriQ
   end
 
   def empty?
-    @que.empty?
+    @que.length <= 1 ? true : false
   end
 
   def length
