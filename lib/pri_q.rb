@@ -119,20 +119,45 @@ class PriQ
     attr_accessor :obj, :priority, :time
 
     def initialize(obj, priority)
-      @obj, @priority, @time = obj, priority, Time.now
+      @obj, @priority, @time = obj, priority, Time.now.to_f
     end
 
     def <=>(other)
       if other.priority < @priority
         -1
-      elsif other.priority > @priority
-        1
+
+      elsif other.priority <= @priority
+        if other.priority == @priority
+          if other.time < @time
+            -1
+          else
+            1
+          end
+        else
+          -1
+        end
+
       elsif other.priority == @priority
         if other.time < @time
           -1
         elsif other.time > @time
           1
         end
+
+      elsif other.priority >= @priority
+        if other.priority == @priority
+          if other.time < @time
+            1
+          elsif other.time > @time
+            -1
+          end
+        else
+          1
+        end
+
+      elsif other.priority > @priority
+        1
+
       end
     end
   end
